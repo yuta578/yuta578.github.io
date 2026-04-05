@@ -40,11 +40,9 @@ const sujetos = [
   "El que avanza", "El que insiste",
   "El que lo intenta otra vez", "El que quiere mejorar",
   "El que se enfoca", "El que hace el esfuerzo",
-
   "Un buen hábito", "El esfuerzo",
   "La práctica", "El intento", "El trabajo",
   "La mejora", "El hábito", "El tiempo", "La paciencia",
-
   "Hacerlo hoy", "Intentarlo otra vez", "Seguir adelante",
   "No rendirse", "Empezar ya", "Dar el primer paso",
   "Seguir intentando", "Aprender de los errores",
@@ -91,8 +89,11 @@ const cierres = [
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$#@!%&░▒▓█▌▐▀▄▂▃▅▆▇";
 
+const SECRET_THRESHOLD = 15;
+
 let animId = null;
 let lastCombo = "";
+let isAnimating = false; // flag para evitar clicks durante animación
 const audio = new Audio(SOUND_FILE);
 
 function pick(arr) {
@@ -111,8 +112,14 @@ function buildPhrase() {
 
 function scrambleAnimate(target) {
   const container = document.getElementById('p-text');
-  container.innerHTML = '';
 
+  // Limpia animación anterior completamente
+  if (animId) {
+    clearInterval(animId);
+    animId = null;
+  }
+
+  container.innerHTML = '';
   const spans = [];
 
   for (let i = 0; i < target.length; i++) {
@@ -128,26 +135,36 @@ function scrambleAnimate(target) {
   const total = target.length;
   const DURATION = 1400;
 
+  // Guardamos un id de "generación" para ignorar timeouts de animaciones viejas
+  const generation = ++scrambleAnimate.generation;
+
   for (let i = 0; i < total; i++) {
     if (target[i] === ' ') continue;
 
     const delay = (i / total) * DURATION * 0.65 + Math.random() * 200;
 
     setTimeout(() => {
+      // Si ya se inició una nueva animación, ignorar este timeout
+      if (scrambleAnimate.generation !== generation) return;
+
       resolved[i] = true;
       spans[i].textContent = target[i];
       spans[i].className = 'char resolved';
       resolvedCount++;
 
       if (resolvedCount >= total) {
+        isAnimating = false;
         document.getElementById('btn').disabled = false;
       }
     }, delay + DURATION * 0.35);
   }
 
-  if (animId) clearInterval(animId);
-
   animId = setInterval(() => {
+    if (scrambleAnimate.generation !== generation) {
+      clearInterval(animId);
+      animId = null;
+      return;
+    }
     for (let i = 0; i < total; i++) {
       if (!resolved[i]) {
         spans[i].textContent = CHARS[Math.floor(Math.random() * CHARS.length)];
@@ -156,19 +173,58 @@ function scrambleAnimate(target) {
   }, 50);
 
   setTimeout(() => {
+    if (scrambleAnimate.generation !== generation) return;
     clearInterval(animId);
     animId = null;
   }, DURATION + 400);
 }
 
+scrambleAnimate.generation = 0;
+
+// --- Botón secreto ---
+function checkSecretButton() {
+  const clicks = parseInt(localStorage.getItem('lucky_clicks') || '0');
+  const existing = document.getElementById('secret-btn');
+
+  if (clicks >= SECRET_THRESHOLD) {
+    if (!existing) {
+      const btn = document.createElement('a');
+      btn.id = 'secret-btn';
+      btn.href = 'https://yuta578.github.io/ai/';
+      btn.textContent = '▇';
+      btn.style.cssText = `
+        position: fixed;
+        bottom: 18px;
+        right: 20px;
+        color: rgba(255,255,255,0.12);
+        font-size: 11px;
+        letter-spacing: 0.1em;
+      `;
+      document.body.appendChild(btn);
+    }
+  }
+}
+
 function generate() {
+
+  if (isAnimating) return;
+
+  isAnimating = true;
   document.getElementById('btn').disabled = true;
+
   audio.currentTime = 0;
   audio.play().catch(() => {});
   scrambleAnimate(buildPhrase());
 
+
   const clicks = parseInt(localStorage.getItem('lucky_clicks') || '0') + 1;
   localStorage.setItem('lucky_clicks', clicks);
+
+
+  checkSecretButton();
 }
 
 document.getElementById('btn').addEventListener('click', generate);
+
+
+checkSecretButton();
