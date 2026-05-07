@@ -57,6 +57,7 @@ function playClick() {
 }
 
 const completeSound = new Audio('media/complete.mp3');
+const hojaSound = new Audio('media/hoja.mp3');
 
 const NOTIFY_SEEN = 'mini_notify_seen';
 
@@ -94,11 +95,41 @@ function showCompleteSequence() {
   }));
 }
 
+const RELOAD_ANGER_KEY = 'prescript_anger';
+const ANGER_MAX = 20;
+
+(function initAnger() {
+  const cur = parseInt(localStorage.getItem(RELOAD_ANGER_KEY) || '0');
+  const next = Math.min(cur + 1, ANGER_MAX);
+  localStorage.setItem(RELOAD_ANGER_KEY, next);
+
+  if (next >= ANGER_MAX) {
+    setTimeout(() => { localStorage.clear(); location.reload(); }, 800);
+    return;
+  }
+
+  setInterval(() => {
+    const v = parseInt(localStorage.getItem(RELOAD_ANGER_KEY) || '0');
+    if (v > 0) localStorage.setItem(RELOAD_ANGER_KEY, v - 1);
+  }, 5000);
+})();
+
 function showWelcome() {
-  const msgs = ["bienvenido de nuevo.","aquí estás otra vez.","sabía que volverías.","de nuevo por aquí.","qué bueno verte.","sigues volviendo.","otra vez tú.","no te cansas de venir.","siempre regresas.","bienvenido."];
-  const msg = msgs[Math.floor(Math.random() * msgs.length)];
+  const anger = parseInt(localStorage.getItem(RELOAD_ANGER_KEY) || '0');
+
+  const normalMsgs = ["bienvenido de nuevo.","aquí estás otra vez.","sabía que volverías.","de nuevo por aquí.","qué bueno verte.","sigues volviendo.","otra vez tú.","no te cansas de venir.","siempre regresas.","bienvenido."];
+  const angry1Msgs = ["¿otra vez?","para. ya.","en serio. para.","no voy a cambiar."];
+  const angry2Msg  = "Te lo Advierto.";
+  const angry3Msg  = "PARA YA.";
+
+  let msg, color;
+  if (anger >= 13)      { msg = angry3Msg; color = '#cc0000'; }
+  else if (anger >= 9)  { msg = angry2Msg; color = '#cc0000'; }
+  else if (anger >= 5)  { msg = angry1Msgs[Math.floor(Math.random() * angry1Msgs.length)]; color = '#aa2222'; }
+  else                  { msg = normalMsgs[Math.floor(Math.random() * normalMsgs.length)]; color = '#555'; }
+
   const el = document.createElement('div');
-  el.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:#555;font-family:'Georgia',serif;opacity:0;transition:opacity 0.6s ease;pointer-events:none;white-space:nowrap;`;
+  el.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:${color};font-family:'Georgia',serif;opacity:0;transition:opacity 0.6s ease;pointer-events:none;white-space:nowrap;`;
   el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => {
@@ -131,13 +162,13 @@ function buildHoja() {
   if (document.getElementById('hoja-trigger')) return;
   const trigger = document.createElement('div');
   trigger.id = 'hoja-trigger';
-  trigger.innerHTML = '&#8679;';
+  trigger.innerHTML = '&#8679 &#8679 &#8679;';
   trigger.style.cssText = `position:fixed;left:28px;bottom:28px;font-size:18px;color:rgba(200,190,160,0.35);cursor:default;user-select:none;transition:color 0.3s;z-index:100;`;
   const hoja = document.createElement('div');
   hoja.id = 'hoja-panel';
   hoja.style.cssText = `position:fixed;left:0;bottom:0;width:260px;height:55vh;background:#0d0d0d;border-top:1px solid #1e1e1e;border-right:1px solid #1e1e1e;transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);z-index:99;display:flex;flex-direction:column;padding:20px 28px 24px;box-sizing:border-box;`;
   const closeBtn = document.createElement('div');
-  closeBtn.innerHTML = '&#8681;';
+  closeBtn.innerHTML = '&#8681 &#8681 &#8681;';
   closeBtn.style.cssText = `font-size:16px;color:rgba(200,190,160,0.3);cursor:default;user-select:none;text-align:center;margin-bottom:18px;transition:color 0.2s;flex-shrink:0;`;
   closeBtn.addEventListener('mouseenter', () => { closeBtn.style.color = 'rgba(200,190,160,0.7)'; });
   closeBtn.addEventListener('mouseleave', () => { closeBtn.style.color = 'rgba(200,190,160,0.3)'; });
@@ -153,8 +184,8 @@ function buildHoja() {
   document.body.appendChild(hoja);
   document.body.appendChild(trigger);
   let open = false;
-  function openHoja() { open = true; hoja.style.transform = 'translateY(0)'; trigger.style.color = 'rgba(200,190,160,0)'; refreshLista(); }
-  function closeHoja() { open = false; hoja.style.transform = 'translateY(100%)'; trigger.style.color = 'rgba(200,190,160,0.35)'; }
+  function openHoja() { open = true; hoja.style.transform = 'translateY(0)'; trigger.style.color = 'rgba(200,190,160,0)'; refreshLista(); hojaSound.currentTime=0; hojaSound.play().catch(()=>{}); }
+  function closeHoja() { open = false; hoja.style.transform = 'translateY(100%)'; trigger.style.color = 'rgba(200,190,160,0.35)'; hojaSound.currentTime=0; hojaSound.play().catch(()=>{}); }
   trigger.addEventListener('mouseenter', () => { if (!open) { trigger.style.color = 'rgba(200,190,160,0.7)'; openHoja(); } });
   trigger.addEventListener('mouseleave', () => { if (!open) trigger.style.color = 'rgba(200,190,160,0.35)'; });
   trigger.addEventListener('click', () => { if (!open) openHoja(); });
@@ -287,7 +318,7 @@ const sujetos = [
   "El trabajo de cada día", "Mejorar un poco cada vez", "La iniciativa",
   "El que no se rinde", "Quien lo vuelve a intentar",
   "El que corrige sus errores", "Alguien que insiste",
-  "El que se esfuerza", "Quien quiere aprender de verdad",
+  "El que se esforce", "Quien quiere aprender de verdad",
   "El que se mantiene firme", "Alguien que avanza",
   "El que no para", "Quien sigue intentándolo",
   "El que da lo mejor de sí", "Alguien comprometido",
@@ -503,6 +534,8 @@ function pickSpecial() {
 
 function generate() {
   if (isAnimating) return;
+  if (document.getElementById("btn").disabled) return;
+  if (localStorage.getItem(MISION2_KEY) === '1' && parseFloat(localStorage.getItem('mision2_progress') || '0') <= 0) return;
 
   isAnimating = true;
   pendingSpecial = null;
@@ -534,17 +567,329 @@ function generate() {
 
   scrambleAnimate(displayText);
   checkSecretButton();
+  checkMision2();
 }
 
 document.getElementById('btn').addEventListener('click', generate);
 
+// ── MISIÓN 2: MANIVELA ──────────────────────────────────────
+const MISION2_KEY    = 'mision2_started';
+const MISION2_INTRO  = 'mision2_intro_done';
+const MISION2_DONE   = 'mision2_done';
+const MISION2_CLICKS = 30;
+
+const mision2Lines = [
+  "Veo que te gusta hacer esto.",
+  "lamentablemente esto gasta mucha energia.",
+  "Y No eres el unico generando frases.",
+  "Para generar frases, necesitas energía.",
+  "Y procesarlas aun mas.",
+  "Y aveces esto puede corromperlas.",
+  "te propongo un trato.",
+  "Desde ahora apareceran frases en su estado original.",
+  "sin procesar.",
+  "Tu trabajo sera reportarlas.",
+  "SOLO en caso de ver anormalidades.",
+  "Tambien Tendras que generar tu propia energia.",
+  "Solo gira el mecanismo.",
+  "Te recomendaria no dejar que llege a 0%.",
+  "Cuando estés listo, gira la manivela."
+];
+
+function buildManivela() {
+  if (document.getElementById('manivela-trigger')) return;
+
+  // Flecha arriba (parte superior izquierda)
+  const trigger = document.createElement('div');
+  trigger.id = 'manivela-trigger';
+  trigger.innerHTML = '&#8681 &#8681 &#8681;';
+  trigger.style.cssText = `position:fixed;left:28px;top:28px;font-size:18px;color:rgba(200,190,160,0.35);cursor:default;user-select:none;transition:color 0.3s;z-index:100;`;
+
+  // Panel (baja desde arriba)
+  const panel = document.createElement('div');
+  panel.id = 'manivela-panel';
+  panel.style.cssText = `position:fixed;left:0;top:0;width:260px;height:55vh;background:#0d0d0d;border-bottom:1px solid #1e1e1e;border-right:1px solid #1e1e1e;transform:translateY(-100%);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);z-index:99;display:flex;flex-direction:column;align-items:center;padding:24px 28px 20px;box-sizing:border-box;`;
+
+  // Botón cerrar (flecha arriba dentro del panel, en la parte de abajo)
+  const closeBtn = document.createElement('div');
+  closeBtn.innerHTML = '&#8679 &#8679 &#8679;';
+  closeBtn.style.cssText = `font-size:16px;color:rgba(200,190,160,0.3);cursor:default;user-select:none;text-align:center;margin-top:auto;transition:color 0.2s;flex-shrink:0;`;
+  closeBtn.addEventListener('mouseenter', () => { closeBtn.style.color = 'rgba(200,190,160,0.7)'; });
+  closeBtn.addEventListener('mouseleave', () => { closeBtn.style.color = 'rgba(200,190,160,0.3)'; });
+
+  // Título
+  const title = document.createElement('div');
+  title.style.cssText = `font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:#333;margin-bottom:20px;font-family:'Georgia',serif;flex-shrink:0;width:100%;`;
+  title.textContent = '';
+
+  // ── Manivela ──
+  const manivelWrap = document.createElement('div');
+  manivelWrap.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;flex:1;justify-content:center;`;
+
+  // Círculo
+  const circle = document.createElement('div');
+  circle.style.cssText = `width:120px;height:120px;border:1px solid #2a2a2a;border-radius:50%;position:relative;flex-shrink:0;`;
+
+  const center = document.createElement('div');
+  center.style.cssText = `width:6px;height:6px;background:#444;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);`;
+
+  const handle = document.createElement('div');
+  handle.style.cssText = `width:14px;height:14px;background:#6a8a5a;border-radius:50%;position:absolute;cursor:grab;transition:background 0.2s;`;
+
+  circle.appendChild(center);
+  circle.appendChild(handle);
+
+  // Barra
+  const barWrap = document.createElement('div');
+  barWrap.style.cssText = `width:100%;height:6px;background:#1a1a1a;border:1px solid #2a2a2a;box-sizing:border-box;`;
+  const barFill = document.createElement('div');
+  barFill.style.cssText = `height:100%;width:0%;background:#6a8a5a;transition:width 0.08s linear;`;
+  barWrap.appendChild(barFill);
+
+  // Label barra
+  const barLabel = document.createElement('div');
+  barLabel.style.cssText = `font-size:8px;letter-spacing:0.2em;color:#333;font-family:'Georgia',serif;text-transform:uppercase;`;
+  barLabel.textContent = '0%';
+
+  manivelWrap.appendChild(circle);
+  const warning = document.createElement('div');
+  warning.id = 'manivela-warning';
+  warning.textContent = '⚠';
+  warning.style.cssText = `font-size:18px;color:#cc3333;opacity:0;transition:opacity 0.4s ease;margin-top:4px;`;
+  manivelWrap.appendChild(barWrap);
+  manivelWrap.appendChild(barLabel);
+  manivelWrap.appendChild(warning);
+
+  panel.appendChild(title);
+  panel.appendChild(manivelWrap);
+  panel.appendChild(closeBtn);
+  document.body.appendChild(panel);
+  document.body.appendChild(trigger);
+
+  // ── Lógica manivela ──
+  const radius = 42;
+  let grabbing = false;
+  let lastAngle = null;
+  let progress = parseFloat(localStorage.getItem('mision2_progress') || '0');
+
+  function updateHandle(angle) {
+    const x = 60 + Math.cos(angle) * radius;
+    const y = 60 + Math.sin(angle) * radius;
+    handle.style.left = (x - 7) + 'px';
+    handle.style.top  = (y - 7) + 'px';
+  }
+  updateHandle(0);
+
+  const alarmSound = new Audio('media/alert3.mp3');
+  alarmSound.loop = true;
+  alarmSound.volume = 0.4;
+
+  const cutSound = new Audio('media/alert2.mp3');
+
+  function setProgress(val) {
+    const prev = progress;
+    progress = Math.max(0, Math.min(100, val));
+    barFill.style.width = progress + '%';
+    barLabel.textContent = Math.round(progress) + '%';
+    localStorage.setItem('mision2_progress', progress);
+
+    // Warning visual
+    const warningEl = document.getElementById('manivela-warning');
+    if (warningEl) warningEl.style.opacity = progress <= 0 ? '1' : '0';
+
+    if (progress >= 100 && localStorage.getItem(MISION2_DONE) !== '1') {
+      localStorage.setItem(MISION2_DONE, '1');
+      onManivelaDone();
+    }
+    // Si se vacía: cortar scramble, sonar alarma y cut
+    if (progress <= 0 && prev > 0) {
+      if (isAnimating) {
+        scrambleAnimate.generation++;
+        if (animId) { clearInterval(animId); animId = null; }
+        isAnimating = false;
+        audio.pause();
+        cutSound.play().catch(()=>{});
+        audio.currentTime = 0;
+        cutSound.currentTime = 0;
+        document.getElementById('btn').disabled = true;
+      }
+      alarmSound.currentTime = 0;
+      alarmSound.play().catch(()=>{});
+    }
+    // Silenciar alarma al recargar
+    if (progress > 0 && prev <= 0) {
+      alarmSound.pause();
+      alarmSound.currentTime = 0;
+    }
+    // Reactivar botón cuando vuelve a tener carga
+    if (progress > 0 && !isAnimating && localStorage.getItem(MISION2_INTRO) === '1') {
+      document.getElementById('btn').disabled = false;
+    }
+  }
+  setProgress(progress);
+
+  handle.addEventListener('mousedown', (e) => { grabbing=true; handle.style.cursor='grabbing'; handle.style.background='#8aaa7a'; e.preventDefault(); });
+  document.addEventListener('mouseup', () => { grabbing=false; handle.style.cursor='grab'; handle.style.background='#6a8a5a'; lastAngle=null; });
+  document.addEventListener('mousemove', (e) => {
+    if (!grabbing) return;
+    const rect = circle.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    const dx = e.clientX - cx;
+    const dy = e.clientY - cy;
+    const dist = Math.sqrt(dx*dx+dy*dy);
+    if (Math.abs(dist - radius) > 40) { grabbing=false; lastAngle=null; return; }
+    const angle = Math.atan2(dy, dx);
+    if (lastAngle !== null) {
+      let diff = angle - lastAngle;
+      if (diff > Math.PI) diff -= 2*Math.PI;
+      if (diff < -Math.PI) diff += 2*Math.PI;
+      if (diff < 0) { lastAngle = angle; return; }
+      setProgress(progress + diff * 1.5);
+    }
+    updateHandle(angle);
+    lastAngle = angle;
+  });
+
+  // Baja sola
+  setInterval(() => { setProgress(progress - 0.1); }, 30);
+
+  // Abrir/cerrar panel
+  let open = false;
+  function openPanel() { open=true; panel.style.transform='translateY(0)'; trigger.style.color='rgba(200,190,160,0)'; hojaSound.currentTime=0; hojaSound.play().catch(()=>{}); }
+  function closePanel() { open=false; panel.style.transform='translateY(-100%)'; trigger.style.color='rgba(200,190,160,0.35)'; hojaSound.currentTime=0; hojaSound.play().catch(()=>{}); }
+
+  trigger.addEventListener('mouseenter', () => { if (!open) { trigger.style.color='rgba(200,190,160,0.7)'; openPanel(); } });
+  trigger.addEventListener('mouseleave', () => { if (!open) trigger.style.color='rgba(200,190,160,0.35)'; });
+  trigger.addEventListener('click', () => { if (!open) openPanel(); });
+  closeBtn.addEventListener('click', () => { if (open) closePanel(); });
+}
+
+function onManivelaDone() {
+  // Placeholder — aquí va lo que pasa al llegar al 100%
+}
+
+const reportSound = new Audio('media/report.mp3');
+reportSound.volume = 0.3;
+
+// Función para construir el botón "Reportar" y añadir la animación de entrada
+function buildReportButton(isReload = false) {
+  if (document.getElementById('report-btn')) return;
+
+  const reportBtn = document.createElement('button');
+  reportBtn.id = 'report-btn';
+  reportBtn.className = 'report-btn';
+  reportBtn.textContent = 'Reportar';
+
+  reportBtn.addEventListener('click', () => {
+    reportSound.currentTime = 0;
+    reportSound.play().catch(() => {});
+  });
+
+  const btnWrap = document.getElementById('btn-wrap');
+  if (btnWrap) {
+    btnWrap.parentElement.appendChild(reportBtn);
+    
+    if (isReload) {
+      // Si es una recarga, quitamos la transición temporalmente y lo mostramos ya
+      reportBtn.style.transition = 'none'; 
+      reportBtn.classList.add('visible');
+      // Forzamos un reflow y devolvemos la transición para futuros hovers
+      setTimeout(() => { reportBtn.style.transition = ''; }, 50);
+    } else {
+      // Si es la primera vez (Misión 2 activándose), hacemos la animación
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          reportBtn.classList.add('visible');
+        });
+      });
+    }
+  }
+}
+
+function showMision2Intro() {
+  if (localStorage.getItem(MISION2_INTRO) === '1') {
+    buildManivela();
+    buildReportButton();
+    return;
+  }
+
+  const luckyBtn = document.getElementById('btn');
+  luckyBtn.disabled = true;
+
+  const flor = document.querySelector('.prescrip-image');
+  let lineIndex = 0;
+
+  function showNextLine() {
+    if (lineIndex >= mision2Lines.length) {
+      localStorage.setItem(MISION2_INTRO, '1');
+      luckyBtn.disabled = false;
+      
+      buildReportButton();
+      buildManivela();
+      return;
+    }
+
+    const el = document.createElement('div');
+    el.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:#a09880;font-family:'Georgia',serif;opacity:0;transition:opacity 0.6s ease;pointer-events:none;white-space:nowrap;`;
+    el.textContent = mision2Lines[lineIndex];
+    document.body.appendChild(el);
+
+    if (flor) {
+      const rect = flor.getBoundingClientRect();
+      el.style.top = (rect.top - 24) + 'px';
+    } else {
+      el.style.top = '60px';
+    }
+
+    requestAnimationFrame(() => {
+      el.style.opacity = '1';
+      setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => {
+          el.remove();
+          lineIndex++;
+          showNextLine();
+        }, 700);
+      }, 2500);
+    });
+  }
+
+  showNextLine();
+}
+
+function checkMision2() {
+  const clicks = parseInt(localStorage.getItem('lucky_clicks') || '0');
+  if (clicks >= MISION2_CLICKS && localStorage.getItem(MISION2_KEY) !== '1') {
+    localStorage.setItem(MISION2_KEY, '1');
+    showMision2Intro();
+  }
+}
+
+// ── FIN MISIÓN 2 ─────────────────────────────────────────────
+
 checkSecretButton();
 if (localStorage.getItem('prescript_intro_seen') === '1') showWelcome();
-if (localStorage.getItem(AI_CHAT_DONE) === '1' && localStorage.getItem(MINI_DONE) !== '1') {
+
+if (localStorage.getItem(AI_CHAT_DONE) === '1') {
   document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', buildHoja) : buildHoja();
 }
+
+// Si la Misión 2 ya comenzó, construimos tanto la manivela como el botón de reportar
+if (localStorage.getItem(MISION2_KEY) === '1') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      buildManivela();
+      buildReportButton(true);
+    });
+  } else {
+    buildManivela();
+    buildReportButton(true);
+  }
+}
+
 window.addEventListener('storage', function(e) {
-  if (e.key === AI_CHAT_DONE && e.newValue === '1' && localStorage.getItem(MINI_DONE) !== '1') buildHoja();
+  if (e.key === AI_CHAT_DONE && e.newValue === '1') buildHoja();
 });
 
 
@@ -577,7 +922,6 @@ window.addEventListener('storage', function(e) {
   ];
 
   const SHOW_BOX_AFTER  = 4;
-  const SHOW_BTN_AFTER  = 7;
 
   let currentLine = 0;
 
@@ -593,6 +937,7 @@ window.addEventListener('storage', function(e) {
 
   function showLine(idx) {
     dialogBox.classList.remove('visible');
+
     setTimeout(function () {
       dialogText.textContent = lines[idx];
       dialogBox.classList.add('visible');
@@ -630,9 +975,26 @@ window.addEventListener('storage', function(e) {
       localStorage.setItem(INTRO_KEY, '1');
 
       dialogBox.classList.remove('visible');
+
       setTimeout(function () {
         dialogScreen.classList.remove('active');
+
         btnWrap.classList.add('visible');
+
+        // Estado inicial
+        btnWrap.style.opacity = '0';
+        btnWrap.style.transform = 'translate(-50%, -80px)';
+        btnWrap.style.transition =
+          'transform 0.55s cubic-bezier(0.4,0,0.2,1), opacity 0.45s ease';
+
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            // Baja desde el centro y termina pegado al borde
+            btnWrap.style.opacity = '1';
+            btnWrap.style.transform = 'translateX(-50%) translateY(100%)';
+          });
+        });
+
         setTimeout(function () {
           luckyBtn.disabled = false;
         }, 520);
@@ -642,64 +1004,3 @@ window.addEventListener('storage', function(e) {
 })();
 
 
-(function initDebug() {
-  let pCount = 0;
-  let pTimer = null;
-
-  document.addEventListener('keydown', function(e) {
-    if (e.key !== '.') return;
-
-    pCount++;
-    clearTimeout(pTimer);
-    pTimer = setTimeout(function() { pCount = 0; }, 2000);
-
-    if (pCount >= 5) {
-      pCount = 0;
-      showDebugBtn();
-    }
-  });
-
-  function showDebugBtn() {
-    if (document.getElementById('debug-btn')) return;
-
-    const btn = document.createElement('button');
-    btn.id = 'debug-btn';
-    btn.textContent = 'borrar datos';
-    btn.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: transparent;
-      border: 1px solid #550000;
-      color: #883333;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      padding: 8px 20px;
-      cursor: pointer;
-      font-family: 'Georgia', serif;
-      z-index: 9999;
-      transition: border-color 0.2s, color 0.2s;
-    `;
-
-    btn.addEventListener('mouseenter', function() {
-      btn.style.borderColor = '#aa0000';
-      btn.style.color = '#cc4444';
-    });
-    btn.addEventListener('mouseleave', function() {
-      btn.style.borderColor = '#550000';
-      btn.style.color = '#883333';
-    });
-
-    btn.addEventListener('click', function() {
-      localStorage.clear();
-      btn.textContent = 'listo ✓';
-      btn.style.color = '#448844';
-      btn.style.borderColor = '#226622';
-      setTimeout(function() { btn.remove(); }, 1500);
-    });
-
-    document.body.appendChild(btn);
-  }
-})();
