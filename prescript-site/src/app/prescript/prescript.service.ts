@@ -1,0 +1,1016 @@
+import { Injectable, OnDestroy } from '@angular/core';
+import { ClickApiService } from './click-api.service';
+
+// ── MINIJUEGO ──────────────────────────────────────────────
+const SOUND_FILE   = 'media/scramble.mp3';
+const MINI_GOAL    = 5;
+const MINI_KEY     = 'lucky_found';
+const MINI_DONE    = 'minigame_done';
+const AI_CHAT_DONE = 'ai_chat_done';
+const NOTIFY_SEEN  = 'mini_notify_seen';
+const SPECIAL_PROB = 0.30;
+const CHARS        = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$#@!%&░▒▓█▌▐▀▄▂▃▅▆▇';
+const SECRET_THRESHOLD = 15;
+const RELOAD_ANGER_KEY = 'prescript_anger';
+const ANGER_MAX        = 20;
+
+// ── MISIÓN 2 ──────────────────────────────────────────────
+const MISION2_KEY    = 'mision2_started';
+const MISION2_INTRO  = 'mision2_intro_done';
+const MISION2_DONE   = 'mision2_done';
+const MISION2_CLICKS = 30;
+
+const specialPhrases: string[] = [
+  'Hay algo escondido entre las palabras. Encuéntralo.',
+  'No todo lo que ves es lo que parece. Sigue mirando.',
+  'Algunas puertas solo se abren si sabes dónde buscar.',
+  'Lo extraordinario se esconde dentro de lo ordinario.',
+  'Este mensaje fue escrito para ti. Solo para ti.',
+  'Hay señales en el ruido. Aprende a leerlas.',
+  'No es casualidad que estés aquí ahora mismo.',
+  'Cada vez que presionas, algo cambia. ¿Lo notas?',
+];
+
+const specialWordPhrases: [string, string, string][] = [
+  ['El que busca siempre encuentra ', 'algo', ' que no esperaba.'],
+  ['La constancia es la clave ', 'oculta', ' del éxito.'],
+  ['Detrás de cada error hay una ', 'señal', ' que ignoramos.'],
+  ['El progreso real empieza cuando dejas de buscar ', 'atajos', '.'],
+  ['Hay momentos que parecen normales pero son ', 'únicos', '.'],
+  ['Lo que practicas en silencio define lo que eres en ', 'público', '.'],
+  ['Cada pequeño paso deja una ', 'huella', ' más profunda de lo que crees.'],
+  ['No esperes el momento perfecto. El momento ', 'eres', ' tú.'],
+  ['Dentro de cada hábito hay una ', 'chispa', ' que espera encenderse.'],
+  ['La diferencia entre avanzar y quedarte está en una sola ', 'decisión', '.'],
+];
+
+const mision2Lines: string[] = [
+  'Veo que te gusta hacer esto.',
+  'lamentablemente esto gasta mucha energia.',
+  'Y No eres el unico generando frases.',
+  'Para generar frases, necesitas energía.',
+  'Y procesarlas aun mas.',
+  'Y aveces esto puede corromperlas.',
+  'te propongo un trato.',
+  'Desde ahora apareceran frases en su estado original.',
+  'sin procesar.',
+  'Tu trabajo sera reportarlas.',
+  'SOLO en caso de ver anormalidades.',
+  'Tambien Tendras que generar tu propia energia.',
+  'Solo gira el mecanismo.',
+  'Te recomendaria no dejar que llege a 0%.',
+  'Cuando estés listo, gira la manivela.',
+];
+
+const sujetos: string[] = [
+  'El que lo intenta', 'Quien da el primer paso', 'El que aprende cada día',
+  'Alguien constante', 'El que sigue adelante', 'Quien se equivoca',
+  'El que se levanta', 'Una mente curiosa', 'El que practica',
+  'Quien sabe escuchar', 'El que observa y aprende', 'Alguien paciente',
+  'El que decide cambiar', 'Quien busca mejorar', 'El que se adapta',
+  'Una buena decisión', 'Un pequeño paso', 'El esfuerzo de cada día',
+  'La disciplina', 'La constancia', 'Aprender siempre',
+  'El hábito diario', 'La motivación', 'El compromiso',
+  'El enfoque', 'La dedicación', 'La práctica constante',
+  'El cambio', 'La perseverancia', 'El progreso',
+  'La intención', 'Intentarlo de verdad', 'La actitud',
+  'El trabajo de cada día', 'Mejorar un poco cada vez', 'La iniciativa',
+  'El que no se rinde', 'Quien lo vuelve a intentar',
+  'El que corrige sus errores', 'Alguien que insiste',
+  'El que se esforce', 'Quien quiere aprender de verdad',
+  'El que se mantiene firme', 'Alguien que avanza',
+  'El que no para', 'Quien sigue intentándolo',
+  'El que da lo mejor de sí', 'Alguien comprometido',
+  'El que empieza sin miedo', 'Quien enfrenta los retos',
+  'El que se supera', 'Alguien que evoluciona',
+  'El que crea hábitos', 'Quien pasa a la acción',
+  'El que persevera', 'Alguien enfocado',
+  'El que se reta a sí mismo', 'Quien busca soluciones',
+  'El que mejora poco a poco', 'Alguien disciplinado',
+  'El que actúa', 'Quien decide seguir adelante',
+  'El que no se queda quieto', 'Alguien que progresa',
+  'El que sigue aprendiendo', 'Quien no abandona',
+  'El que se mantiene constante', 'Alguien que no se rinde',
+  'El que lo intenta cada día', 'Quien construye su propio camino',
+  'El que da un paso más', 'Alguien que no se conforma',
+  'El que quiere lograrlo', 'Quien trabaja por lo que quiere',
+  'El que sigue creciendo', 'Alguien que se enfoca',
+  'El que insiste hasta lograrlo', 'Quien no pierde el rumbo',
+  'El que empieza', 'El que sigue',
+  'El que lo vuelve a intentar', 'El que aprende',
+  'El que se equivoca y sigue', 'El que mejora',
+  'El que avanza', 'El que insiste',
+  'El que lo intenta otra vez', 'El que quiere mejorar',
+  'El que se enfoca', 'El que hace el esfuerzo',
+  'Un buen hábito', 'El esfuerzo',
+  'La práctica', 'El intento', 'El trabajo',
+  'La mejora', 'El hábito', 'El tiempo', 'La paciencia',
+  'Hacerlo hoy', 'Intentarlo otra vez', 'Seguir adelante',
+  'No rendirse', 'Empezar ya', 'Dar el primer paso',
+  'Seguir intentando', 'Aprender de los errores',
+  'Mejorar poco a poco', 'Probar algo nuevo',
+  'Volver a empezar', 'Hacer el esfuerzo',
+  'Mantenerse firme', 'No detenerse',
+];
+
+const verbos: string[] = [
+  'avanza poquito a poco', 'marca la diferencia',
+  'trae buenos resultados', 'abre oportunidades',
+  'siempre vale la pena', 'te acerca a lo que quieres',
+  'mejora con el tiempo', 'deja una buena lección',
+  'abre caminos', 'genera cambios reales',
+  'te ayuda a crecer', 'requiere paciencia',
+  'toma tiempo, pero funciona', 'suma más de lo que crees',
+  'te prepara para lo que viene', 'da frutos a largo plazo',
+  'te hace más fuerte', 'es parte del proceso',
+  'te impulsa a seguir', 'crea nuevas posibilidades',
+  'te enseña algo nuevo', 'refuerza tu disciplina',
+  'te acerca a tu meta', 'depende de tu constancia',
+  'requiere esfuerzo, pero vale la pena', 'te construye día a día',
+  'es clave para avanzar', 'hace que todo cobre sentido',
+  'te mantiene en movimiento', 'te ayuda a mejorar cada día',
+  'te lleva más lejos de lo que imaginas',
+];
+
+const cierres: string[] = [
+  'Sigue así.', 'No te detengas.', 'Vale la pena.',
+  'Confía en el proceso.', 'Paso a paso.',
+  'Todo suma.', 'Sigue intentándolo.',
+  'No te rindas.', 'Vas bien.', 'Continúa.',
+  'Hazlo sencillo.', 'Sigue aprendiendo.',
+  'Cada día cuenta.', 'Mantente firme.',
+  'Disfruta el camino.', 'Todo mejora con el tiempo.',
+  'Sigue avanzando.', 'No pierdas el ritmo.',
+  'Vas progresando.', 'Sigue con eso.',
+  'Haz que valga la pena.', 'No pares ahora.',
+  'Vas mejorando.', 'Sigue creciendo.',
+  'Confía en ti.', 'No te frenes ahora.',
+  'Sigue dando lo mejor de ti.', 'Mantén el foco.',
+  'Todo esfuerzo suma.', 'No lo dejes a medias.',
+];
+
+interface PendingSpecial {
+  type: 'phrase' | 'word';
+  data: string | [string, string, string];
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class PrescriptService implements OnDestroy {
+
+  // ── Estado ──────────────────────────────────────────────
+  private lastCombo   = '';
+  private isAnimating = false;
+  private animId: ReturnType<typeof setInterval> | null = null;
+  private pendingSpecial: PendingSpecial | null = null;
+  private scrambleGeneration = 0;
+
+  // ── Audio ────────────────────────────────────────────────
+  private audio        = new Audio(SOUND_FILE);
+  private completeSound = new Audio('media/complete.mp3');
+  private hojaSound    = new Audio('media/hoja.mp3');
+  private reportSound  = new Audio('media/report.mp3');
+  private alarmSound   = new Audio('media/alert3.mp3');
+  private cutSound     = new Audio('media/alert2.mp3');
+
+  // ── Listeners ────────────────────────────────────────────
+  private storageListener!: (e: StorageEvent) => void;
+  private mouseUpListener!: () => void;
+  private mouseMoveListener!: (e: MouseEvent) => void;
+
+  constructor(private clickApi: ClickApiService) {
+    this.reportSound.volume = 0.3;
+    this.alarmSound.loop    = true;
+    this.alarmSound.volume  = 0.4;
+
+    this.initAnger();
+    this.checkSecretButton();
+
+    if (localStorage.getItem('prescript_intro_seen') === '1') {
+      this.showWelcome();
+    }
+
+    if (localStorage.getItem(AI_CHAT_DONE) === '1') {
+      this.whenReady(() => this.buildHoja());
+    }
+
+    if (localStorage.getItem(MISION2_KEY) === '1') {
+      this.whenReady(() => {
+        this.buildManivela();
+        this.buildReportButton(true);
+      });
+    }
+
+    this.storageListener = (e: StorageEvent) => {
+      if (e.key === AI_CHAT_DONE && e.newValue === '1') this.buildHoja();
+    };
+    window.addEventListener('storage', this.storageListener);
+  }
+
+  // ── Utilidades ───────────────────────────────────────────
+
+  private whenReady(fn: () => void): void {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn, { once: true });
+    } else {
+      fn();
+    }
+  }
+
+  private pick<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  // ── localStorage helpers ─────────────────────────────────
+
+  private getFoundSet(): Set<string> {
+    try { return new Set(JSON.parse(localStorage.getItem(MINI_KEY) || '[]')); }
+    catch { return new Set(); }
+  }
+
+  private saveFoundSet(set: Set<string>): void {
+    localStorage.setItem(MINI_KEY, JSON.stringify([...set]));
+  }
+
+  // ── Audio ────────────────────────────────────────────────
+
+  private playClick(): void {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.18);
+  }
+
+  // ── Anger (recargas) ─────────────────────────────────────
+
+  private initAnger(): void {
+    const cur  = parseInt(localStorage.getItem(RELOAD_ANGER_KEY) || '0');
+    const next = Math.min(cur + 1, ANGER_MAX);
+    localStorage.setItem(RELOAD_ANGER_KEY, String(next));
+
+    if (next >= ANGER_MAX) {
+      setTimeout(() => { localStorage.clear(); location.reload(); }, 800);
+      return;
+    }
+
+    setInterval(() => {
+      const v = parseInt(localStorage.getItem(RELOAD_ANGER_KEY) || '0');
+      if (v > 0) localStorage.setItem(RELOAD_ANGER_KEY, String(v - 1));
+    }, 5000);
+  }
+
+  // ── Bienvenida ───────────────────────────────────────────
+
+  showWelcome(): void {
+    const anger = parseInt(localStorage.getItem(RELOAD_ANGER_KEY) || '0');
+
+    const normalMsgs  = ['bienvenido de nuevo.','aquí estás otra vez.','sabía que volverías.','de nuevo por aquí.','qué bueno verte.','sigues volviendo.','otra vez tú.','no te cansas de venir.','siempre regresas.','bienvenido.'];
+    const angry1Msgs  = ['¿otra vez?','para. ya.','en serio. para.','no voy a cambiar.'];
+    const angry2Msg   = 'Te lo Advierto.';
+    const angry3Msg   = 'PARA YA.';
+
+    let msg: string, color: string;
+    if      (anger >= 13) { msg = angry3Msg; color = '#cc0000'; }
+    else if (anger >= 9)  { msg = angry2Msg; color = '#cc0000'; }
+    else if (anger >= 5)  { msg = this.pick(angry1Msgs); color = '#aa2222'; }
+    else                  { msg = this.pick(normalMsgs); color = '#555'; }
+
+    const el = document.createElement('div');
+    el.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:${color};font-family:'Georgia',serif;opacity:0;transition:opacity 0.6s ease;pointer-events:none;white-space:nowrap;`;
+    el.textContent = msg;
+    document.body.appendChild(el);
+
+    setTimeout(() => {
+      const flor = document.querySelector('.prescrip-image');
+      el.style.top = flor ? (flor.getBoundingClientRect().top - 24) + 'px' : '16px';
+      requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 700); }, 3000);
+      });
+    }, 300);
+  }
+
+  // ── Complete sequence ────────────────────────────────────
+
+  private showCompleteSequence(): void {
+    if (localStorage.getItem(NOTIFY_SEEN) === '1') return;
+    if (document.getElementById('mini-notify')) return;
+
+    const msg1 = 'Encontraste lo que necesitaba';
+    const msg2 = 'ya puedes volver';
+    const el   = document.createElement('div');
+    el.id = 'mini-notify';
+    el.style.cssText = `position:fixed;top:16px;left:20px;display:flex;align-items:center;gap:8px;opacity:0;transition:opacity 0.6s ease;font-family:'Georgia',serif;pointer-events:none;`;
+    el.innerHTML = `
+      <img src="media/teto.png" alt="" style="width:50px;height:50px;object-fit:contain;opacity:0.7;">
+      <span id="mini-notify-text" style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:#6a8a5a;">${msg1}</span>
+    `;
+    document.body.appendChild(el);
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.opacity = '1';
+      setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => {
+          const txt = document.getElementById('mini-notify-text');
+          if (txt) txt.textContent = msg2;
+          el.style.opacity = '1';
+          setTimeout(() => {
+            el.style.opacity = '0';
+            setTimeout(() => { el.remove(); localStorage.setItem(NOTIFY_SEEN, '1'); }, 700);
+          }, 3000);
+        }, 700);
+      }, 3000);
+    }));
+  }
+
+  // ── Minijuego ────────────────────────────────────────────
+
+  private getLabelFromId(id: string): string {
+    if (id.startsWith('sp:')) {
+      const key  = id.slice(3);
+      const full = specialPhrases.find(p => p.slice(0, 30) === key);
+      return full || key;
+    }
+    if (id.startsWith('wp:')) {
+      const parts     = id.slice(3).split(':');
+      const word      = parts[0];
+      const beforeKey = parts[1] || '';
+      const entry     = specialWordPhrases.find(p => p[1] === word && p[0].slice(0, 20) === beforeKey);
+      return entry ? entry[0] + entry[1] + entry[2] : word;
+    }
+    return id;
+  }
+
+  private onFound(): void {
+    this.playClick();
+    this.refreshLista();
+    if (this.getFoundSet().size >= MINI_GOAL) {
+      localStorage.setItem(MINI_DONE, '1');
+      this.completeSound.currentTime = 0;
+      this.completeSound.volume      = 0.8;
+      this.completeSound.play().catch(() => {});
+      this.showCompleteSequence();
+    }
+  }
+
+  renderSpecialPhrase(text: string): void {
+    const container = document.getElementById('p-text');
+    if (!container) return;
+    const id           = 'sp:' + text.slice(0, 30);
+    const found        = this.getFoundSet();
+    const alreadyFound = found.has(id);
+
+    container.innerHTML = '';
+    const span = document.createElement('span');
+    span.textContent = text;
+    span.style.cssText = `cursor:default;border-bottom:1px solid ${alreadyFound ? '#3a5a3a' : 'rgba(200,190,160,0.25)'};transition:border-color 0.2s,color 0.2s;color:${alreadyFound ? '#5a8a5a' : '#e8e0d0'};`;
+
+    if (!alreadyFound) {
+      span.addEventListener('mouseenter', () => { span.style.borderColor = 'rgba(200,190,160,0.7)'; });
+      span.addEventListener('mouseleave', () => { span.style.borderColor = 'rgba(200,190,160,0.25)'; });
+      span.addEventListener('click', () => {
+        const f = this.getFoundSet();
+        if (f.has(id)) return;
+        f.add(id);
+        this.saveFoundSet(f);
+        span.style.color       = '#5a8a5a';
+        span.style.borderColor = '#3a5a3a';
+        this.onFound();
+      });
+    }
+    container.appendChild(span);
+  }
+
+  renderWordPhrase(parts: [string, string, string]): void {
+    const [before, word, after] = parts;
+    const container = document.getElementById('p-text');
+    if (!container) return;
+    const id           = 'wp:' + word + ':' + before.slice(0, 20);
+    const found        = this.getFoundSet();
+    const alreadyFound = found.has(id);
+
+    container.innerHTML = '';
+    const addText = (t: string) => container.appendChild(document.createTextNode(t));
+
+    addText(before);
+    const span = document.createElement('span');
+    span.textContent = word;
+    span.style.cssText = `cursor:default;background:${alreadyFound ? 'rgba(80,120,70,0.18)' : 'rgba(200,190,160,0.08)'};border-bottom:1px solid ${alreadyFound ? '#3a5a3a' : 'rgba(200,190,160,0.3)'};padding:0 2px;color:${alreadyFound ? '#5a8a5a' : '#e8e0d0'};transition:background 0.2s,color 0.2s;`;
+
+    if (!alreadyFound) {
+      span.addEventListener('mouseenter', () => { span.style.background = 'rgba(200,190,160,0.15)'; span.style.borderColor = 'rgba(200,190,160,0.7)'; });
+      span.addEventListener('mouseleave', () => { span.style.background = 'rgba(200,190,160,0.08)'; span.style.borderColor = 'rgba(200,190,160,0.3)'; });
+      span.addEventListener('click', () => {
+        const f = this.getFoundSet();
+        if (f.has(id)) return;
+        f.add(id);
+        this.saveFoundSet(f);
+        span.style.background  = 'rgba(80,120,70,0.18)';
+        span.style.borderColor = '#3a5a3a';
+        span.style.color       = '#5a8a5a';
+        this.onFound();
+      });
+    }
+    container.appendChild(span);
+    addText(after);
+  }
+
+  // ── Hoja (panel de encontradas) ──────────────────────────
+
+  buildHoja(): void {
+    if (document.getElementById('hoja-trigger')) return;
+
+    const trigger = document.createElement('div');
+    trigger.id = 'hoja-trigger';
+    trigger.innerHTML = '&#8679 &#8679 &#8679;';
+    trigger.style.cssText = `position:fixed;left:28px;bottom:28px;font-size:18px;color:rgba(200,190,160,0.35);cursor:default;user-select:none;transition:color 0.3s;z-index:100;`;
+
+    const hoja = document.createElement('div');
+    hoja.id = 'hoja-panel';
+    hoja.style.cssText = `position:fixed;left:0;bottom:0;width:260px;height:55vh;background:#0d0d0d;border-top:1px solid #1e1e1e;border-right:1px solid #1e1e1e;transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);z-index:99;display:flex;flex-direction:column;padding:20px 28px 24px;box-sizing:border-box;`;
+
+    const closeBtn = document.createElement('div');
+    closeBtn.innerHTML = '&#8681 &#8681 &#8681;';
+    closeBtn.style.cssText = `font-size:16px;color:rgba(200,190,160,0.3);cursor:default;user-select:none;text-align:center;margin-bottom:18px;transition:color 0.2s;flex-shrink:0;`;
+    closeBtn.addEventListener('mouseenter', () => { closeBtn.style.color = 'rgba(200,190,160,0.7)'; });
+    closeBtn.addEventListener('mouseleave', () => { closeBtn.style.color = 'rgba(200,190,160,0.3)'; });
+
+    const title = document.createElement('div');
+    title.style.cssText = `font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:#333;margin-bottom:16px;font-family:'Georgia',serif;flex-shrink:0;`;
+    title.textContent = 'encontradas';
+
+    const lista = document.createElement('div');
+    lista.id = 'hoja-lista';
+    lista.style.cssText = `flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:8px;min-width:0;`;
+
+    hoja.appendChild(closeBtn);
+    hoja.appendChild(title);
+    hoja.appendChild(lista);
+    document.body.appendChild(hoja);
+    document.body.appendChild(trigger);
+
+    let open = false;
+    const openHoja  = () => { open = true;  hoja.style.transform = 'translateY(0)';    trigger.style.color = 'rgba(200,190,160,0)';    this.refreshLista(); this.hojaSound.currentTime=0; this.hojaSound.play().catch(()=>{}); };
+    const closeHoja = () => { open = false; hoja.style.transform = 'translateY(100%)'; trigger.style.color = 'rgba(200,190,160,0.35)'; this.hojaSound.currentTime=0; this.hojaSound.play().catch(()=>{}); };
+
+    trigger.addEventListener('mouseenter', () => { if (!open) { trigger.style.color = 'rgba(200,190,160,0.7)'; openHoja(); } });
+    trigger.addEventListener('mouseleave', () => { if (!open) trigger.style.color = 'rgba(200,190,160,0.35)'; });
+    trigger.addEventListener('click', () => { if (!open) openHoja(); });
+    closeBtn.addEventListener('click',  () => { if (open) closeHoja(); });
+
+    this.refreshLista();
+  }
+
+  private refreshLista(): void {
+    const lista = document.getElementById('hoja-lista');
+    if (!lista) return;
+    lista.innerHTML = '';
+    const found = this.getFoundSet();
+
+    if (found.size === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = `font-size:9px;color:#222;font-family:Georgia,serif;font-style:italic;letter-spacing:0.1em;`;
+      empty.textContent = 'ninguna aún.';
+      lista.appendChild(empty);
+      return;
+    }
+
+    found.forEach(id => {
+      const label = this.getLabelFromId(id);
+      const item  = document.createElement('div');
+      item.style.cssText = `font-size:9px;color:#6a8a5a;font-family:'Georgia',serif;font-style:italic;letter-spacing:0.05em;line-height:1.5;border-bottom:1px solid #1a1a1a;padding-bottom:6px;word-break:break-word;white-space:normal;`;
+      item.textContent = label;
+      lista.appendChild(item);
+    });
+  }
+
+  // ── Scramble ─────────────────────────────────────────────
+
+  private buildPhrase(): string {
+    let phrase = '', attempts = 0;
+    do {
+      phrase = this.pick(sujetos) + ' ' + this.pick(verbos) + '. ' + this.pick(cierres);
+      attempts++;
+    } while (phrase === this.lastCombo && attempts < 10);
+    this.lastCombo = phrase;
+    return phrase;
+  }
+
+  private scrambleAnimate(target: string): void {
+    const container = document.getElementById('p-text');
+    if (!container) return;
+
+    if (this.animId) { clearInterval(this.animId); this.animId = null; }
+
+    container.innerHTML = '';
+    const spans: HTMLSpanElement[] = [];
+
+    for (let i = 0; i < target.length; i++) {
+      const span = document.createElement('span');
+      span.className = 'char ' + (target[i] === ' ' ? 'resolved' : 'scrambling');
+      span.textContent = target[i] === ' ' ? ' ' : CHARS[Math.floor(Math.random() * CHARS.length)];
+      container.appendChild(span);
+      spans.push(span);
+    }
+
+    const resolved       = target.split('').map(c => c === ' ');
+    let resolvedCount    = resolved.filter(Boolean).length;
+    const total          = target.length;
+    const DURATION       = 1400;
+    const generation     = ++this.scrambleGeneration;
+
+    for (let i = 0; i < total; i++) {
+      if (target[i] === ' ') continue;
+      const delay = (i / total) * DURATION * 0.65 + Math.random() * 200;
+
+      setTimeout(() => {
+        if (this.scrambleGeneration !== generation) return;
+        resolved[i]         = true;
+        spans[i].textContent = target[i];
+        spans[i].className   = 'char resolved';
+        resolvedCount++;
+
+        if (resolvedCount >= total) {
+          this.isAnimating = false;
+          const btn = document.getElementById('btn') as HTMLButtonElement | null;
+          if (btn) btn.disabled = false;
+
+          if (this.pendingSpecial) {
+            this.buildHoja();
+            if (this.pendingSpecial.type === 'phrase') {
+              this.renderSpecialPhrase(this.pendingSpecial.data as string);
+            } else {
+              this.renderWordPhrase(this.pendingSpecial.data as [string, string, string]);
+            }
+            this.pendingSpecial = null;
+          }
+        }
+      }, delay + DURATION * 0.35);
+    }
+
+    this.animId = setInterval(() => {
+      if (this.scrambleGeneration !== generation) { clearInterval(this.animId!); this.animId = null; return; }
+      for (let i = 0; i < total; i++) {
+        if (!resolved[i]) spans[i].textContent = CHARS[Math.floor(Math.random() * CHARS.length)];
+      }
+    }, 50);
+
+    setTimeout(() => {
+      if (this.scrambleGeneration !== generation) return;
+      if (this.animId) { clearInterval(this.animId); this.animId = null; }
+    }, DURATION + 400);
+  }
+
+  // ── Secret button ─────────────────────────────────────────
+
+  private checkSecretButton(): void {
+    const clicks = parseInt(localStorage.getItem('lucky_clicks') || '0');
+    if (clicks >= SECRET_THRESHOLD && !document.getElementById('secret-btn')) {
+      const btn = document.createElement('a');
+      btn.id   = 'secret-btn';
+      (btn as HTMLAnchorElement).href = 'https://yuta578.github.io/ai/';
+      btn.textContent = '▇';
+      btn.style.cssText = `position:fixed;bottom:18px;right:20px;color:rgba(255,255,255,0.12);font-size:11px;letter-spacing:0.1em;`;
+      document.body.appendChild(btn);
+    }
+  }
+
+  // ── pickSpecial ───────────────────────────────────────────
+
+  private pickSpecial(): PendingSpecial | null {
+    const found            = this.getFoundSet();
+    const availablePhrases = specialPhrases.filter(p => !found.has('sp:' + p.slice(0, 30)));
+    const availableWords   = specialWordPhrases.filter(p => !found.has('wp:' + p[1] + ':' + p[0].slice(0, 20)));
+
+    if (availablePhrases.length + availableWords.length === 0) return null;
+
+    if (availablePhrases.length === 0) return { type: 'word',   data: this.pick(availableWords) };
+    if (availableWords.length   === 0) return { type: 'phrase', data: this.pick(availablePhrases) };
+
+    return Math.random() < 0.5
+      ? { type: 'phrase', data: this.pick(availablePhrases) }
+      : { type: 'word',   data: this.pick(availableWords) };
+  }
+
+  // ── Generar (onClick del botón principal) ─────────────────
+
+  generate(): void {
+    if (this.isAnimating) return;
+    const btn = document.getElementById('btn') as HTMLButtonElement | null;
+    if (btn?.disabled) return;
+    if (localStorage.getItem(MISION2_KEY) === '1' && parseFloat(localStorage.getItem('mision2_progress') || '0') <= 0) return;
+
+    this.isAnimating    = true;
+    this.pendingSpecial = null;
+    if (btn) btn.disabled = true;
+
+    this.audio.currentTime = 0;
+    this.audio.play().catch(() => {});
+
+    const clicks = parseInt(localStorage.getItem('lucky_clicks') || '0') + 1;
+    localStorage.setItem('lucky_clicks', String(clicks));
+
+    // ── Registrar click en la BD ──────────────────────────
+    this.clickApi.increment().subscribe();
+
+    const missionActive = localStorage.getItem(AI_CHAT_DONE) === '1';
+    const alreadyDone   = localStorage.getItem(MINI_DONE)    === '1';
+    let displayText: string;
+
+    if (missionActive && !alreadyDone && Math.random() < SPECIAL_PROB) {
+      const special = this.pickSpecial();
+      if (special) {
+        this.pendingSpecial = special;
+        displayText = special.type === 'phrase'
+          ? (special.data as string)
+          : (special.data as [string, string, string]).join('');
+      } else {
+        displayText = this.buildPhrase();
+      }
+    } else {
+      displayText = this.buildPhrase();
+    }
+
+    this.scrambleAnimate(displayText);
+    this.checkSecretButton();
+    this.checkMision2();
+  }
+
+  // ── Misión 2: Manivela ────────────────────────────────────
+
+  buildManivela(): void {
+    if (document.getElementById('manivela-trigger')) return;
+
+    const trigger = document.createElement('div');
+    trigger.id = 'manivela-trigger';
+    trigger.innerHTML = '&#8681 &#8681 &#8681;';
+    trigger.style.cssText = `position:fixed;left:28px;top:28px;font-size:18px;color:rgba(200,190,160,0.35);cursor:default;user-select:none;transition:color 0.3s;z-index:100;`;
+
+    const panel = document.createElement('div');
+    panel.id = 'manivela-panel';
+    panel.style.cssText = `position:fixed;left:0;top:0;width:260px;height:55vh;background:#0d0d0d;border-bottom:1px solid #1e1e1e;border-right:1px solid #1e1e1e;transform:translateY(-100%);transition:transform 0.4s cubic-bezier(0.4,0,0.2,1);z-index:99;display:flex;flex-direction:column;align-items:center;padding:24px 28px 20px;box-sizing:border-box;`;
+
+    const closeBtn = document.createElement('div');
+    closeBtn.innerHTML = '&#8679 &#8679 &#8679;';
+    closeBtn.style.cssText = `font-size:16px;color:rgba(200,190,160,0.3);cursor:default;user-select:none;text-align:center;margin-top:auto;transition:color 0.2s;flex-shrink:0;`;
+    closeBtn.addEventListener('mouseenter', () => { closeBtn.style.color = 'rgba(200,190,160,0.7)'; });
+    closeBtn.addEventListener('mouseleave', () => { closeBtn.style.color = 'rgba(200,190,160,0.3)'; });
+
+    const title = document.createElement('div');
+    title.style.cssText = `font-size:8px;letter-spacing:0.3em;text-transform:uppercase;color:#333;margin-bottom:20px;font-family:'Georgia',serif;flex-shrink:0;width:100%;`;
+
+    // Manivela
+    const manivelWrap = document.createElement('div');
+    manivelWrap.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;flex:1;justify-content:center;`;
+
+    const circle = document.createElement('div');
+    circle.style.cssText = `width:120px;height:120px;border:1px solid #2a2a2a;border-radius:50%;position:relative;flex-shrink:0;`;
+
+    const center = document.createElement('div');
+    center.style.cssText = `width:6px;height:6px;background:#444;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);`;
+
+    const handle = document.createElement('div');
+    handle.style.cssText = `width:14px;height:14px;background:#6a8a5a;border-radius:50%;position:absolute;cursor:grab;transition:background 0.2s;`;
+
+    circle.appendChild(center);
+    circle.appendChild(handle);
+
+    const barWrap = document.createElement('div');
+    barWrap.style.cssText = `width:100%;height:6px;background:#1a1a1a;border:1px solid #2a2a2a;box-sizing:border-box;`;
+    const barFill = document.createElement('div');
+    barFill.style.cssText = `height:100%;width:0%;background:#6a8a5a;transition:width 0.08s linear;`;
+    barWrap.appendChild(barFill);
+
+    const barLabel = document.createElement('div');
+    barLabel.style.cssText = `font-size:8px;letter-spacing:0.2em;color:#333;font-family:'Georgia',serif;text-transform:uppercase;`;
+    barLabel.textContent = '0%';
+
+    const warning = document.createElement('div');
+    warning.id = 'manivela-warning';
+    warning.textContent = '⚠';
+    warning.style.cssText = `font-size:18px;color:#cc3333;opacity:0;transition:opacity 0.4s ease;margin-top:4px;`;
+
+    manivelWrap.appendChild(circle);
+    manivelWrap.appendChild(barWrap);
+    manivelWrap.appendChild(barLabel);
+    manivelWrap.appendChild(warning);
+
+    panel.appendChild(title);
+    panel.appendChild(manivelWrap);
+    panel.appendChild(closeBtn);
+    document.body.appendChild(panel);
+    document.body.appendChild(trigger);
+
+    // Lógica manivela
+    const radius = 42;
+    let grabbing  = false;
+    let lastAngle: number | null = null;
+    let progress  = parseFloat(localStorage.getItem('mision2_progress') || '0');
+
+    const updateHandle = (angle: number) => {
+      const x = 60 + Math.cos(angle) * radius;
+      const y = 60 + Math.sin(angle) * radius;
+      handle.style.left = (x - 7) + 'px';
+      handle.style.top  = (y - 7) + 'px';
+    };
+    updateHandle(0);
+
+    const setProgress = (val: number) => {
+      const prev = progress;
+      progress   = Math.max(0, Math.min(100, val));
+      barFill.style.width   = progress + '%';
+      barLabel.textContent  = Math.round(progress) + '%';
+      localStorage.setItem('mision2_progress', String(progress));
+
+      const warningEl = document.getElementById('manivela-warning');
+      if (warningEl) warningEl.style.opacity = progress <= 0 ? '1' : '0';
+
+      if (progress >= 100 && localStorage.getItem(MISION2_DONE) !== '1') {
+        localStorage.setItem(MISION2_DONE, '1');
+        this.onManivelaDone();
+      }
+
+      if (progress <= 0 && prev > 0) {
+        if (this.isAnimating) {
+          this.scrambleGeneration++;
+          if (this.animId) { clearInterval(this.animId); this.animId = null; }
+          this.isAnimating = false;
+          this.audio.pause();
+          this.cutSound.play().catch(() => {});
+          this.audio.currentTime    = 0;
+          this.cutSound.currentTime = 0;
+          const btn = document.getElementById('btn') as HTMLButtonElement | null;
+          if (btn) btn.disabled = true;
+        }
+        this.alarmSound.currentTime = 0;
+        this.alarmSound.play().catch(() => {});
+      }
+
+      if (progress > 0 && prev <= 0) {
+        this.alarmSound.pause();
+        this.alarmSound.currentTime = 0;
+      }
+
+      if (progress > 0 && !this.isAnimating && localStorage.getItem(MISION2_INTRO) === '1') {
+        const btn = document.getElementById('btn') as HTMLButtonElement | null;
+        if (btn) btn.disabled = false;
+      }
+    };
+
+    setProgress(progress);
+
+    // Drain automático
+    setInterval(() => { setProgress(progress - 0.1); }, 30);
+
+    // Drag handlers
+    handle.addEventListener('mousedown', (e: MouseEvent) => {
+      grabbing = true;
+      handle.style.cursor     = 'grabbing';
+      handle.style.background = '#8aaa7a';
+      e.preventDefault();
+    });
+
+    this.mouseUpListener = () => {
+      grabbing = false;
+      handle.style.cursor     = 'grab';
+      handle.style.background = '#6a8a5a';
+      lastAngle = null;
+    };
+
+    this.mouseMoveListener = (e: MouseEvent) => {
+      if (!grabbing) return;
+      const rect = circle.getBoundingClientRect();
+      const cx   = rect.left + rect.width  / 2;
+      const cy   = rect.top  + rect.height / 2;
+      const dx   = e.clientX - cx;
+      const dy   = e.clientY - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (Math.abs(dist - radius) > 40) { grabbing = false; lastAngle = null; return; }
+      const angle = Math.atan2(dy, dx);
+      if (lastAngle !== null) {
+        let diff = angle - lastAngle;
+        if (diff >  Math.PI) diff -= 2 * Math.PI;
+        if (diff < -Math.PI) diff += 2 * Math.PI;
+        if (diff < 0) { lastAngle = angle; return; }
+        setProgress(progress + diff * 1.5);
+      }
+      updateHandle(angle);
+      lastAngle = angle;
+    };
+
+    document.addEventListener('mouseup',   this.mouseUpListener);
+    document.addEventListener('mousemove', this.mouseMoveListener);
+
+    // Abrir/cerrar panel
+    let open = false;
+    const openPanel  = () => { open = true;  panel.style.transform = 'translateY(0)';    trigger.style.color = 'rgba(200,190,160,0)';    this.hojaSound.currentTime=0; this.hojaSound.play().catch(()=>{}); };
+    const closePanel = () => { open = false; panel.style.transform = 'translateY(-100%)'; trigger.style.color = 'rgba(200,190,160,0.35)'; this.hojaSound.currentTime=0; this.hojaSound.play().catch(()=>{}); };
+
+    trigger.addEventListener('mouseenter', () => { if (!open) { trigger.style.color = 'rgba(200,190,160,0.7)'; openPanel(); } });
+    trigger.addEventListener('mouseleave', () => { if (!open) trigger.style.color = 'rgba(200,190,160,0.35)'; });
+    trigger.addEventListener('click',  () => { if (!open) openPanel(); });
+    closeBtn.addEventListener('click', () => { if (open)  closePanel(); });
+  }
+
+  private onManivelaDone(): void {
+    // Placeholder — aquí va lo que pasa al llegar al 100%
+  }
+
+  // ── Botón Reportar ────────────────────────────────────────
+
+  buildReportButton(isReload = false): void {
+    if (document.getElementById('report-btn')) return;
+
+    const reportBtn = document.createElement('button');
+    reportBtn.id        = 'report-btn';
+    reportBtn.className = 'report-btn';
+    reportBtn.textContent = 'Reportar';
+    reportBtn.addEventListener('click', () => {
+      this.reportSound.currentTime = 0;
+      this.reportSound.play().catch(() => {});
+    });
+
+    const btnWrap = document.getElementById('btn-wrap');
+    if (btnWrap?.parentElement) {
+      btnWrap.parentElement.appendChild(reportBtn);
+
+      if (isReload) {
+        reportBtn.style.transition = 'none';
+        reportBtn.classList.add('visible');
+        setTimeout(() => { reportBtn.style.transition = ''; }, 50);
+      } else {
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          reportBtn.classList.add('visible');
+        }));
+      }
+    }
+  }
+
+  // ── Intro Misión 2 ────────────────────────────────────────
+
+  private showMision2Intro(): void {
+    if (localStorage.getItem(MISION2_INTRO) === '1') {
+      this.buildManivela();
+      this.buildReportButton();
+      return;
+    }
+
+    const luckyBtn = document.getElementById('btn') as HTMLButtonElement | null;
+    if (luckyBtn) luckyBtn.disabled = true;
+
+    const flor      = document.querySelector('.prescrip-image');
+    let lineIndex   = 0;
+
+    const showNextLine = () => {
+      if (lineIndex >= mision2Lines.length) {
+        localStorage.setItem(MISION2_INTRO, '1');
+        if (luckyBtn) luckyBtn.disabled = false;
+        this.buildReportButton();
+        this.buildManivela();
+        return;
+      }
+
+      const el = document.createElement('div');
+      el.style.cssText = `position:fixed;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:0.22em;text-transform:uppercase;color:#a09880;font-family:'Georgia',serif;opacity:0;transition:opacity 0.6s ease;pointer-events:none;white-space:nowrap;`;
+      el.textContent = mision2Lines[lineIndex];
+      document.body.appendChild(el);
+
+      if (flor) {
+        const rect   = flor.getBoundingClientRect();
+        el.style.top = (rect.top - 24) + 'px';
+      } else {
+        el.style.top = '60px';
+      }
+
+      requestAnimationFrame(() => {
+        el.style.opacity = '1';
+        setTimeout(() => {
+          el.style.opacity = '0';
+          setTimeout(() => { el.remove(); lineIndex++; showNextLine(); }, 700);
+        }, 2500);
+      });
+    };
+
+    showNextLine();
+  }
+
+  private checkMision2(): void {
+    const clicks = parseInt(localStorage.getItem('lucky_clicks') || '0');
+    if (clicks >= MISION2_CLICKS && localStorage.getItem(MISION2_KEY) !== '1') {
+      localStorage.setItem(MISION2_KEY, '1');
+      this.showMision2Intro();
+    }
+  }
+
+  // ── Intro principal ───────────────────────────────────────
+  // La lógica de initIntro() manipula elementos del DOM de prescript.html.
+  // Llama a initIntro() desde ngOnInit() del componente una vez el DOM esté listo.
+
+  initIntro(): void {
+    const INTRO_KEY     = 'prescript_intro_seen';
+    const startScreen   = document.getElementById('start-screen');
+    const startBtn      = document.getElementById('start-btn')   as HTMLButtonElement | null;
+    const dialogScreen  = document.getElementById('dialog-screen');
+    const dialogBox     = document.getElementById('dialog-box');
+    const dialogText    = document.getElementById('dialog-text');
+    const dialogNext    = document.getElementById('dialog-next') as HTMLButtonElement | null;
+    const prescripWrap  = document.getElementById('prescrip-wrap');
+    const btnWrap       = document.getElementById('btn-wrap');
+    const luckyBtn      = document.getElementById('btn')         as HTMLButtonElement | null;
+
+    const lines = [
+      '...','Hace mucho no veo a alguien por aquí.',
+      'No tengas miedo.','Solo soy una observadora.',
+      'Te voy a mostrar algo que puede ayudarte.',
+      'Aqui te mostrara mensajes para ti.',
+      'Cada frase te puede resonar.','No hay respuesta correcta.',
+      'La pantalla te mostrara lo que tengas que ver',
+      'o saber...','Cuando quieras, pulsa el botón.','Buena suerte.',
+    ];
+
+    const SHOW_BOX_AFTER = 4;
+    let currentLine = 0;
+
+    if (localStorage.getItem(INTRO_KEY)) {
+      if (startScreen)  startScreen.style.display  = 'none';
+      if (dialogScreen) dialogScreen.style.display = 'none';
+      prescripWrap?.classList.add('no-intro');
+      btnWrap?.classList.add('no-intro');
+      return;
+    }
+
+    if (luckyBtn) luckyBtn.disabled = true;
+
+    const showLine = (idx: number) => {
+      dialogBox?.classList.remove('visible');
+      setTimeout(() => {
+        if (dialogText) dialogText.textContent = lines[idx];
+        dialogBox?.classList.add('visible');
+      }, 240);
+    };
+
+    startBtn?.addEventListener('click', () => {
+      if (!startScreen) return;
+      startScreen.style.transition    = 'opacity 0.35s ease';
+      startScreen.style.opacity       = '0';
+      startScreen.style.pointerEvents = 'none';
+
+      setTimeout(() => {
+        startScreen.style.display = 'none';
+        dialogScreen?.classList.add('active');
+        if (dialogText) dialogText.textContent = lines[0];
+        requestAnimationFrame(() => requestAnimationFrame(() => { dialogBox?.classList.add('visible'); }));
+      }, 350);
+    });
+
+    dialogNext?.addEventListener('click', () => {
+      if (currentLine === SHOW_BOX_AFTER) prescripWrap?.classList.add('visible');
+      currentLine++;
+
+      if (currentLine < lines.length) {
+        showLine(currentLine);
+      } else {
+        localStorage.setItem(INTRO_KEY, '1');
+        dialogBox?.classList.remove('visible');
+
+        setTimeout(() => {
+          dialogScreen?.classList.remove('active');
+
+          if (btnWrap) {
+            btnWrap.classList.add('visible');
+            btnWrap.style.opacity   = '0';
+            btnWrap.style.transform = 'translate(-50%, -80px)';
+            btnWrap.style.transition = 'transform 0.55s cubic-bezier(0.4,0,0.2,1), opacity 0.45s ease';
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+              btnWrap.style.opacity   = '1';
+              btnWrap.style.transform = 'translateX(-50%) translateY(100%)';
+            }));
+          }
+
+          setTimeout(() => { if (luckyBtn) luckyBtn.disabled = false; }, 520);
+        }, 350);
+      }
+    });
+  }
+
+  // ── Cleanup ───────────────────────────────────────────────
+
+  ngOnDestroy(): void {
+    window.removeEventListener('storage', this.storageListener);
+    if (this.mouseUpListener)   document.removeEventListener('mouseup',   this.mouseUpListener);
+    if (this.mouseMoveListener) document.removeEventListener('mousemove', this.mouseMoveListener);
+    if (this.animId) clearInterval(this.animId);
+    this.audio.pause();
+    this.alarmSound.pause();
+  }
+}

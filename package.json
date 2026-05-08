@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "frontend": "cd Prescript-site && ng serve",
+    "backend": "cd prescript-back&& npm run start:dev",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\""
   },
   "keywords": [],
   "type": "module",
@@ -12,5 +15,8 @@
   "license": "ISC",
   "dependencies": {
     "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

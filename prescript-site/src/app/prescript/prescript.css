@@ -1,7 +1,7 @@
 @font-face {
   font-family: "code";
-  src: url("./media/fonts/PixelifySans-Regular.woff2") format("woff2"),
-       url("./media/fonts/PixelifySans-Regular.woff") format("woff");
+  src: url("/media/fonts/PixelifySans-Regular.woff2") format("woff2"),
+       url("/media/fonts/PixelifySans-Regular.woff") format("woff");
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -237,7 +237,7 @@
 }
 
 /* ========================= */
-/* 📱 MÓVIL (≤ 600px)        */
+/* MÓVIL (≤ 600px)           */
 /* ========================= */
 @media (max-width: 600px) {
 
@@ -260,7 +260,6 @@
     line-height: 1.7;
   }
 
-  /* Botón Lucky más grande */
   .gen-btn {
     font-size: 16px;
     padding: 20px 56px;
@@ -277,13 +276,11 @@
   .corner.bl { bottom: 12px; left: 12px; }
   .corner.br { bottom: 12px; right: 12px; }
 
-  /* Botón de inicio más grande */
   #start-btn {
     font-size: 1.4rem;
     padding: 22px 60px;
   }
 
-  /* Diálogo más grande */
   #dialog-box {
     max-width: 92%;
     width: 92%;
@@ -296,14 +293,15 @@
     min-height: 3.6em;
   }
 
-  /* Botón › más grande */
   #dialog-next {
     font-size: 1.1rem;
     padding: 16px 36px;
   }
 }
 
-
+/* ========================= */
+/* BOTÓN REPORTAR            */
+/* ========================= */
 .report-btn {
   position: absolute;
 
@@ -319,7 +317,6 @@
 
   background: transparent;
   border: 1px solid #5a1111;
-
   color: #b33;
 
   font-size: 10px;

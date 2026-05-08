@@ -1,0 +1,33 @@
+<!-- start-screen -->
+<div id="start-screen">
+  <button id="start-btn">?</button>
+</div>
+
+<!-- dialog-screen -->
+<div id="dialog-screen">
+  <div id="dialog-box">
+    <p id="dialog-text"></p>
+    <button id="dialog-next">›</button>
+  </div>
+</div>
+
+<!-- escena principal -->
+<div class="scene">
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <div class="prescrip-image">
+    <img src="media/flor.png" alt="imagen prescrip">
+  </div>
+
+  <div id="prescrip-wrap">
+    <div class="prescrip-box">
+      <div class="prescrip-text" id="p-text">—</div>
+      <div class="btn-wrap" id="btn-wrap">
+        <button class="gen-btn" id="btn" (click)="ps.generate()">Lucky</button>
+      </div>
+    </div>
+  </div>
+</div>
